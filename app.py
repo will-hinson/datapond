@@ -1,6 +1,6 @@
 from quart import Quart, request, Response
 
-from datapond.responses import BadRequest, Forbidden
+from datapond.responses import BadRequest, Created, Forbidden
 
 # initialize the global Quart app for this datapond
 datapond = Quart(__name__)
@@ -32,7 +32,7 @@ def alter_filesystem(filesystem_name: str) -> Response:
 
     match request.args["restype"]:
         case "container":
-            return Response({"created": filesystem_name}, status=201)
+            return Created({"created": filesystem_name})
         case other:
             return BadRequest(f"Unknown restype '{request.args['restype']}'")
 
