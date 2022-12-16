@@ -8,15 +8,39 @@ datapond = Quart(__name__)
 
 @datapond.route("/")
 def root() -> Response:
+    """
+    Route that marks the index of this API as Forbidden.
+
+    Args:
+        None
+
+    Returns:
+        Response: A Forbidden response
+
+    Raises:
+        Nothing
+    """
+
     return Forbidden
 
 
-@datapond.route("/<resource_name>", methods=["PUT"])
-def alter_resource(resource_name: str) -> Response:
+@datapond.route("/<filesystem_name>", methods=["PUT"])
+def alter_filesystem(filesystem_name: str) -> Response:
     # ensure that we received a 'restype' argument
     if not "restype" in request.args:
         return BadRequest("A 'restype' parameter must be included in the URI")
 
     match request.args["restype"]:
+        case "container":
+            return Response({"created": filesystem_name}, status=201)
         case other:
             return BadRequest(f"Unknown restype '{request.args['restype']}'")
+
+
+@datapond.route("/<filesystem_name>/<directory_name>", methods=["PUT"])
+def alter_directory(filesystem_name: str, directory_name: str) -> Response:
+    # ensure that we received a 'resource' argument
+    if not "resource" in request.args:
+        return BadRequest("A 'resource' parameter must be included in the URI")
+
+    return Forbidden
