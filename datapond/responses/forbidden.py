@@ -1,3 +1,11 @@
+"""
+module datapond.responses.forbidden
+
+Contains the definition of the Forbidden response which represents a
+standard '403 Forbidden' response that may be returned from a
+Quart route.
+"""
+
 from quart import Response
 
 from .status import Status
