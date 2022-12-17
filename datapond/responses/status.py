@@ -22,3 +22,4 @@ class Status(int, Enum):
 
     BAD_REQUEST: int = 400
     FORBIDDEN: int = 403
+    CONFLICT: int = 409

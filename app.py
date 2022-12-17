@@ -31,19 +31,31 @@ def root() -> Response:
 def alter_filesystem(filesystem_name: str) -> Response:
     # ensure that we received a 'restype' argument
     if not "restype" in request.args:
-        return BadRequest("A 'restype' parameter must be included in the URI")
+        return BadRequest(
+            {
+                "MissingRequiredQueryParameter": "A query parameter that's mandatory for this request is not specified.",
+            }
+        )
 
     match request.args["restype"]:
         case "container":
-            return Created({"created": filesystem_name})
+            return emulator.create_filesystem(filesystem_name)
         case other:
-            return BadRequest(f"Unknown restype '{request.args['restype']}'")
+            return BadRequest(
+                {
+                    "InvalidQueryParameterValue": "Value for one of the query parameters specified in the request URI is invalid.",
+                }
+            )
 
 
 @datapond.route("/<filesystem_name>/<directory_name>", methods=["PUT"])
 def alter_directory(filesystem_name: str, directory_name: str) -> Response:
     # ensure that we received a 'resource' argument
     if not "resource" in request.args:
-        return BadRequest("A 'resource' parameter must be included in the URI")
+        return BadRequest(
+            {
+                "todo": "A 'resource' parameter must be included in the URI",
+            }
+        )
 
     return Forbidden

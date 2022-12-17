@@ -1,8 +1,14 @@
 import os
+import string
+
+from quart import Response
+
+from ..responses import BadRequest, Conflict, Created
 
 
 class Emulator:
     _directory: str
+    _valid_characters: str = string.ascii_letters + string.digits + "_-"
 
     def __init__(self, container_directory: str) -> None:
         # parse/store the specified container directory
@@ -19,3 +25,39 @@ class Emulator:
         if not os.path.isdir(self._directory):
             # try creating its fully qualified path if it isn't
             os.makedirs(self._directory)
+
+    def _contains_invalid_characters(self, resource_name: str) -> bool:
+        return any(
+            map(lambda char: char not in self._valid_characters, list(resource_name))
+        )
+
+    def create_filesystem(self, filesystem_name: str) -> Response:
+        # check if any of the characters in the filesystem name are invalid
+        if self._contains_invalid_characters(filesystem_name):
+            return BadRequest(
+                {
+                    "InvalidResourceName": (
+                        "The specified resource name contains invalid characters"
+                    ),
+                }
+            )
+
+        # generate the absolute directory path of this filesystem
+        filesystem_path: str = os.path.abspath(
+            os.path.join(self._directory, filesystem_name)
+        )
+
+        # check if a directory already exists to simulate this file system
+        if os.path.isdir(filesystem_path):
+            # return 409 Conflict in that case
+            return Conflict(
+                {
+                    "FilesystemAlreadyExists": (
+                        f"Filesystem with name {filesystem_name} already exists"
+                    ),
+                }
+            )
+
+        # otherwise, create a subdirectory for the filesystem
+        os.mkdir(filesystem_path)
+        return Created({"filesystem_name": filesystem_name})
