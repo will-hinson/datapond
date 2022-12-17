@@ -16,6 +16,6 @@ class Emulator:
             )
 
         # if the the directory isn't a file, check if it's already a directory
-        if os.path.isdir(self._directory):
+        if not os.path.isdir(self._directory):
             # try creating its fully qualified path if it isn't
             os.makedirs(self._directory)

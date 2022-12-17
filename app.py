@@ -1,9 +1,12 @@
 from quart import Quart, request, Response
 
 from datapond.responses import BadRequest, Created, Forbidden
+from datapond.emulation import Emulator
 
-# initialize the global Quart app for this datapond
-datapond = Quart(__name__)
+# initialize the global Quart app for this datapond and a global
+# data lake emulator instance
+datapond: Quart = Quart(__name__)
+emulator: Emulator = Emulator("./containers")
 
 
 @datapond.route("/")
