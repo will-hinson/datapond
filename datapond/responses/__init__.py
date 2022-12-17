@@ -3,5 +3,7 @@ from .badrequest import BadRequest
 from .conflict import Conflict
 from .created import Created
 from .forbidden import Forbidden
+from .methodnotallowed import MethodNotAllowed
 from .notfound import NotFound
+from .ok import Ok
 from .status import Status

@@ -1,13 +1,19 @@
+from datetime import datetime
+import email
+import json
 import os
 import string
+from typing import Any, Dict, List
+from uuid import uuid4
 
 from quart import Response
 
-from ..responses import Accepted, BadRequest, Conflict, Created, NotFound
+from ..responses import Accepted, BadRequest, Conflict, Created, NotFound, Ok
 
 
 class Emulator:
     _directory: str
+    _properties_path: str
     _valid_characters: str = string.ascii_letters + string.digits + "_-"
 
     def __init__(self, container_directory: str) -> None:
@@ -26,37 +32,15 @@ class Emulator:
             # try creating its fully qualified path if it isn't
             os.makedirs(self._directory)
 
+        # ensure that there is a properties.json file for the containers directory
+        self._properties_path = os.path.join(self._directory, "properties.json")
+        if not os.path.isfile(self._properties_path):
+            self._write_properties({"properties": {}})
+
     def _contains_invalid_characters(self, resource_name: str) -> bool:
         return any(
             map(lambda char: char not in self._valid_characters, list(resource_name))
         )
-
-    def _recursive_delete_directory(self, target_directory: str) -> None:
-        # first, convert the target directory into an absolute path
-        target_directory = os.path.abspath(target_directory)
-
-        # first, ensure that this directory is a subdirectory of the container directory. we
-        # compare absolute paths to avoid an inadvertant scenario where a user has created a
-        # symlink manually within the container directory
-        if not target_directory.startswith(os.path.abspath(self._directory)):
-            raise NameError(
-                f"Target directory of deletion '{os.path.abspath(target_directory)}' "
-                + f"is not a child of the container directory {os.path.abspath(self._directory)}"
-            )
-
-        # get the target items to delete for this directory
-        _, subdirectories, files = next(os.walk(target_directory))
-
-        # remove all of the files in this directory
-        for filename in files:
-            os.remove(os.path.join(target_directory, filename))
-
-        # recursively delete any child directories
-        for dir_path in subdirectories:
-            self._recursive_delete_directory(os.path.join(target_directory, dir_path))
-
-        # finally, delete this directory
-        os.rmdir(target_directory)
 
     def create_filesystem(self, filesystem_name: str) -> Response:
         # check if any of the characters in the filesystem name are invalid
@@ -85,8 +69,16 @@ class Emulator:
                 }
             )
 
-        # otherwise, create a subdirectory for the filesystem
+        # otherwise, create a subdirectory for the filesystem and add an entry
+        # to properties.json for it
         os.mkdir(filesystem_path)
+        properties: Dict[str, List] = self.properties
+        properties["properties"][filesystem_name] = {
+            "date": email.utils.format_datetime(datetime.utcnow()),
+            "last_modified": email.utils.format_datetime(datetime.utcnow()),
+        }
+        self._write_properties(properties)
+
         return Created({"filesystem_name": filesystem_name})
 
     def delete_filesystem(self, filesystem_name: str) -> Response:
@@ -116,6 +108,97 @@ class Emulator:
                 }
             )
 
-        # otherwise, try deleting the filesystem
+        # otherwise, try deleting the filesystem. if that works, remove its properties
         self._recursive_delete_directory(filesystem_path)
+        properties: Dict[str, Any] = self.properties
+        del properties["properties"][filesystem_name]
+        self._write_properties(properties)
+
         return Accepted({"filesystem_name": filesystem_name})
+
+    def get_filesystem_properties(self, filesystem_name: str) -> Response:
+        # check if any of the characters in the filesystem name are invalid
+        if self._contains_invalid_characters(filesystem_name):
+            return BadRequest(
+                {
+                    "InvalidResourceName": (
+                        "The specified resource name contains invalid characters"
+                    ),
+                }
+            )
+
+        # generate the absolute directory path of this filesystem
+        filesystem_path: str = os.path.abspath(
+            os.path.join(self._directory, filesystem_name)
+        )
+
+        # check if a filesystem directory exists
+        if not os.path.isdir(filesystem_path):
+            # return 404 Not Found if a directory for the filesystem was not found
+            return NotFound(
+                {
+                    "FilesystemNotFound": (
+                        f"Filesystem with name {filesystem_name} does not exist"
+                    ),
+                }
+            )
+
+        # load the current known filesystem properties and get the properties for this filesystem
+        filesystem_properties: Dict[str, Any] = self.properties["properties"][
+            filesystem_name
+        ]
+
+        # return the properties for this filesystem
+        return Ok(
+            filesystem_properties,
+            headers={
+                "Date": filesystem_properties["date"],
+                "Last-Modified": filesystem_properties["last_modified"],
+                "ETag": str(uuid4()),
+            },
+        )
+
+    def list_filesystems(self) -> Response:
+        # get a list of subdirectories in the container directory
+        _, filesystems, _ = os.walk(self._directory)
+        print(filesystems)
+
+        # TODO: implement listing filesystems
+
+        return Ok({})
+
+    @property
+    def properties(self) -> Dict[str, List[Dict[str, Any]]]:
+        with open(self._properties_path, "r", encoding="utf-8") as properties_file:
+            return json.loads(properties_file.read())
+
+    def _recursive_delete_directory(self, target_directory: str) -> None:
+        # first, convert the target directory into an absolute path
+        target_directory = os.path.abspath(target_directory)
+
+        # first, ensure that this directory is a subdirectory of the container directory. we
+        # compare absolute paths to avoid an inadvertant scenario where a user has created a
+        # symlink manually within the container directory
+        if not target_directory.startswith(os.path.abspath(self._directory)):
+            raise NameError(
+                f"Target directory of deletion '{os.path.abspath(target_directory)}' "
+                + f"is not a child of the container directory {os.path.abspath(self._directory)}"
+            )
+
+        # get the target items to delete for this directory
+        _, subdirectories, files = next(os.walk(target_directory))
+
+        # remove all of the files in this directory
+        for filename in files:
+            os.remove(os.path.join(target_directory, filename))
+
+        # recursively delete any child directories
+        for dir_path in subdirectories:
+            self._recursive_delete_directory(os.path.join(target_directory, dir_path))
+
+        # finally, delete this directory
+        os.rmdir(target_directory)
+
+    def _write_properties(self, properties: Dict[str, Any]) -> None:
+        with open(self._properties_path, "w", encoding="utf-8") as properties_file:
+            properties_file.write(json.dumps(properties, indent=2))
