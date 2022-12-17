@@ -3,7 +3,7 @@ import string
 
 from quart import Response
 
-from ..responses import BadRequest, Conflict, Created
+from ..responses import Accepted, BadRequest, Conflict, Created, NotFound
 
 
 class Emulator:
@@ -61,3 +61,34 @@ class Emulator:
         # otherwise, create a subdirectory for the filesystem
         os.mkdir(filesystem_path)
         return Created({"filesystem_name": filesystem_name})
+
+    def delete_filesystem(self, filesystem_name: str) -> Response:
+        # check if any of the characters in the filesystem name are invalid
+        if self._contains_invalid_characters(filesystem_name):
+            return BadRequest(
+                {
+                    "InvalidResourceName": (
+                        "The specified resource name contains invalid characters"
+                    ),
+                }
+            )
+
+        # generate the absolute directory path of this filesystem
+        filesystem_path: str = os.path.abspath(
+            os.path.join(self._directory, filesystem_name)
+        )
+
+        # check if a filesystem directory exists
+        if not os.path.isdir(filesystem_path):
+            # return 404 Not Found if a directory for the filesystem was not found
+            return NotFound(
+                {
+                    "FilesystemNotFound": (
+                        f"Filesystem with name {filesystem_name} does not exist"
+                    ),
+                }
+            )
+
+        # otherwise, try deleting the filesystem
+        os.rmdir(filesystem_path)
+        return Accepted({"filesystem_name": filesystem_name})

@@ -19,7 +19,10 @@ class Status(int, Enum):
 
     OK: int = 200
     CREATED: int = 201
+    ACCEPTED: int = 202
 
     BAD_REQUEST: int = 400
     FORBIDDEN: int = 403
+    NOT_FOUND: int = 404
+    METHOD_NOT_ALLOWED: int = 405
     CONFLICT: int = 409
