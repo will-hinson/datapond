@@ -31,6 +31,33 @@ class Emulator:
             map(lambda char: char not in self._valid_characters, list(resource_name))
         )
 
+    def _recursive_delete_directory(self, target_directory: str) -> None:
+        # first, convert the target directory into an absolute path
+        target_directory = os.path.abspath(target_directory)
+
+        # first, ensure that this directory is a subdirectory of the container directory. we
+        # compare absolute paths to avoid an inadvertant scenario where a user has created a
+        # symlink manually within the container directory
+        if not target_directory.startswith(os.path.abspath(self._directory)):
+            raise NameError(
+                f"Target directory of deletion '{os.path.abspath(target_directory)}' "
+                + f"is not a child of the container directory {os.path.abspath(self._directory)}"
+            )
+
+        # get the target items to delete for this directory
+        _, subdirectories, files = next(os.walk(target_directory))
+
+        # remove all of the files in this directory
+        for filename in files:
+            os.remove(os.path.join(target_directory, filename))
+
+        # recursively delete any child directories
+        for dir_path in subdirectories:
+            self._recursive_delete_directory(os.path.join(target_directory, dir_path))
+
+        # finally, delete this directory
+        os.rmdir(target_directory)
+
     def create_filesystem(self, filesystem_name: str) -> Response:
         # check if any of the characters in the filesystem name are invalid
         if self._contains_invalid_characters(filesystem_name):
@@ -90,5 +117,5 @@ class Emulator:
             )
 
         # otherwise, try deleting the filesystem
-        os.rmdir(filesystem_path)
+        self._recursive_delete_directory(filesystem_path)
         return Accepted({"filesystem_name": filesystem_name})
