@@ -194,15 +194,18 @@ class Emulator:
     def list_filesystems(self) -> Response:
         # loop over all of the subdirectories in the container directory and
         # instantiate filesystem response objects for each of them
+        filesystem_properties: Dict[str, Any] = self.properties
         response_objects: List[Dict[str, Any]] = [
             {
                 "ContainerItems": [
                     {
-                        "Name": "test-file-system",
+                        "Name": filesystem,
                         "Deleted": False,
                         "Version": "0.0",
                         "Properties": {
-                            "Last-Modified": "Sat, 17 Dec 2022 03:50:18 -0000",
+                            "Last-Modified": filesystem_properties["properties"][
+                                filesystem
+                            ]["last_modified"],
                             "Etag": str(uuid4()),
                         },
                         "Metadata": {},
