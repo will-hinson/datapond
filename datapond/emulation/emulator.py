@@ -367,6 +367,73 @@ class Emulator:
         with open(self._properties_path, "r", encoding="utf-8") as properties_file:
             return json.loads(properties_file.read())
 
+    def read_path(self, filesystem_name: str, resource_path: str) -> Response:
+        # ensure that there are no invalid characters in the filesystem name
+        if self._contains_invalid_characters(filesystem_name):
+            return BadRequest(
+                {
+                    "InvalidResourceName": (
+                        "The specified resource name contains invalid characters"
+                    ),
+                }
+            )
+
+        # parse the file path into its consituent parts
+        file_path: List[str] = resource_path.split("/")
+
+        # ensure that all of the components of the file path have valid names
+        if any(
+            self._contains_invalid_characters(subdirectory, additional_chars=".")
+            for subdirectory in file_path
+        ):
+            return BadRequest(
+                {
+                    "InvalidResourceName": (
+                        "The specified resource name contains invalid characters"
+                    ),
+                }
+            )
+
+        # generate the absolute directory path of this filesystem
+        filesystem_path: str = os.path.abspath(
+            os.path.join(self._directory, filesystem_name)
+        )
+
+        # check if a filesystem directory exists
+        if not os.path.isdir(filesystem_path):
+            # return 404 Not Found if a directory for the filesystem was not found
+            return NotFound(
+                {
+                    "FilesystemNotFound": (
+                        f"Filesystem with name {filesystem_name} does not exist"
+                    ),
+                }
+            )
+
+        # derive an absolute path for the resource
+        abs_resource_path: str = os.path.abspath(
+            os.path.join(self._directory, filesystem_path, *file_path)
+        )
+
+        # ensure that the path exists as a file
+        if not os.path.exists(abs_resource_path):
+            return NotFound(
+                {"ResourceNotFound": "The specified resource does not exist."}
+            )
+
+        # read and return the file
+        with open(abs_resource_path, "r", encoding="utf-8") as in_file:
+            data: str = in_file.read()
+            return Ok(
+                data,
+                headers={
+                    "Content-Type": "application/json"
+                    if os.path.splitext(abs_resource_path)[1].lower() == ".json"
+                    else "text/plain",
+                    "Content-Range": f"bytes 1-{len(data)}/{len(data)}",
+                },
+            )
+
     def _recursive_delete_directory(self, target_directory: str) -> None:
         # first, convert the target directory into an absolute path
         target_directory = os.path.abspath(target_directory)
