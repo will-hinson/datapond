@@ -100,7 +100,7 @@ async def alter_filesystem(filesystem_name: str) -> Response:
 
 @datapond.route("/<filesystem_name>", defaults={"path": ""})
 @datapond.route(
-    "/<filesystem_name>/<path:resource_path>", methods=["DELETE", "GET", "PUT"]
+    "/<filesystem_name>/<path:resource_path>", methods=["DELETE", "GET", "PATCH", "PUT"]
 )
 async def alter_resource(filesystem_name: str, resource_path: str) -> Response:
     """
@@ -117,6 +117,7 @@ async def alter_resource(filesystem_name: str, resource_path: str) -> Response:
             that is making the request
     """
 
+    # pylint: disable=too-many-return-statements
     # check if any of the characters in the filesystem name are invalid
     if emulator.contains_invalid_characters(filesystem_name):
         return BadRequest(
@@ -139,6 +140,37 @@ async def alter_resource(filesystem_name: str, resource_path: str) -> Response:
             )
         case "GET":
             return emulator.read_path(filesystem_name, resource_path)
+        case "PATCH":
+            # ensure that we got an 'action' parameter
+            if "action" not in request.args:
+                return BadRequest(
+                    {
+                        "MissingRequiredQueryParameter": (
+                            "A query parameter that's mandatory for this request is not specified."
+                        )
+                    }
+                )
+
+            # either append or flush depending on the 'action' parameter
+            match request.args["action"]:
+                case "append":
+                    return emulator.append_path(
+                        filesystem_name,
+                        resource_path,
+                        await request.body,
+                        request.args["position"],
+                    )
+                case "flush":
+                    return emulator.flush_path(filesystem_name, resource_path)
+                case _:
+                    return BadRequest(
+                        {
+                            "InvalidQueryParameterValue": (
+                                "Value for one of the query parameters specified in the "
+                                + "request URI is invalid."
+                            ),
+                        }
+                    )
         case "PUT":
             # ensure that we received a 'resource' argument which is required for PUT requests
             if not "resource" in request.args:

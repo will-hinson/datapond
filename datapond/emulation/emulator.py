@@ -3,7 +3,7 @@ import email
 import json
 import os
 import string
-from typing import Any, Dict, List
+from typing import Any, Dict, List, Tuple
 from uuid import uuid4
 
 from quart import request, Response
@@ -12,9 +12,11 @@ from ..responses import Accepted, BadRequest, Conflict, Created, NotFound, Ok, S
 
 
 class Emulator:
-    _directory: str
-    _properties_path: str
+    _directory: str = None
+    _properties_path: str = None
     _valid_characters: str = string.ascii_letters + string.digits + "_-"
+
+    _pending_appends: Dict[str, List[Tuple[str, int]]] = None
 
     def __init__(self, container_directory: str) -> None:
         # parse/store the specified container directory
@@ -36,6 +38,79 @@ class Emulator:
         self._properties_path = os.path.join(self._directory, "properties.json")
         if not os.path.isfile(self._properties_path):
             self._write_properties({"properties": {}})
+
+        # initialize an empty "pending appends" dict
+        self._pending_appends = {}
+
+    def append_path(
+        self, filesystem_name: str, resource_path: str, data: str, position: int
+    ) -> Response:
+        # ensure that the incoming position is parsable as an int
+        try:
+            position = int(position)
+        except ValueError:
+            return BadRequest(
+                {
+                    "InvalidQueryParameterValue": (
+                        "Value for one of the query parameters specified in the "
+                        + "request URI is invalid."
+                    ),
+                }
+            )
+
+        # parse the file path into its consituent parts
+        file_path: List[str] = resource_path.split("/")
+
+        # ensure that all of the components of the file path have valid names
+        if any(
+            self.contains_invalid_characters(subdirectory, additional_chars=".")
+            for subdirectory in file_path
+        ):
+            return BadRequest(
+                {
+                    "InvalidResourceName": (
+                        "The specified resource name contains invalid characters"
+                    ),
+                }
+            )
+
+        # generate the absolute directory path of this filesystem
+        filesystem_path: str = os.path.abspath(
+            os.path.join(self._directory, filesystem_name)
+        )
+
+        # check if a filesystem directory exists
+        if not os.path.isdir(filesystem_path):
+            # return 404 Not Found if a directory for the filesystem was not found
+            return NotFound(
+                {
+                    "FilesystemNotFound": (
+                        f"Filesystem with name {filesystem_name} does not exist"
+                    ),
+                }
+            )
+
+        # derive an absolute path for the resource
+        abs_resource_path: str = os.path.abspath(
+            os.path.join(self._directory, filesystem_path, *file_path)
+        )
+
+        # ensure that the path exists as a file
+        if not os.path.exists(abs_resource_path):
+            return NotFound(
+                {"ResourceNotFound": "The specified resource does not exist."}
+            )
+
+        # store the incoming data and append position as a pending append operation
+        if abs_resource_path not in self._pending_appends:
+            self._pending_appends[abs_resource_path] = []
+        self._pending_appends[abs_resource_path].append((data, position))
+
+        # return an acknowledgement that this request was accepted by the API but
+        # not yet committed to the file
+        return Accepted(
+            {"filesystem_name": filesystem_name, "resource_path": resource_path}
+        )
 
     def contains_invalid_characters(
         self, resource_name: str, additional_chars: str = ""
@@ -240,6 +315,65 @@ class Emulator:
         # otherwise, this is a file. just remove it
         os.remove(abs_resource_path)
         return Ok({"deleted_resource": resource_path})
+
+    def flush_path(self, filesystem_name: str, resource_path: str) -> Response:
+        # parse the file path into its consituent parts
+        file_path: List[str] = resource_path.split("/")
+
+        # ensure that all of the components of the file path have valid names
+        if any(
+            self.contains_invalid_characters(subdirectory, additional_chars=".")
+            for subdirectory in file_path
+        ):
+            return BadRequest(
+                {
+                    "InvalidResourceName": (
+                        "The specified resource name contains invalid characters"
+                    ),
+                }
+            )
+
+        # generate the absolute directory path of this filesystem
+        filesystem_path: str = os.path.abspath(
+            os.path.join(self._directory, filesystem_name)
+        )
+
+        # check if a filesystem directory exists
+        if not os.path.isdir(filesystem_path):
+            # return 404 Not Found if a directory for the filesystem was not found
+            return NotFound(
+                {
+                    "FilesystemNotFound": (
+                        f"Filesystem with name {filesystem_name} does not exist"
+                    ),
+                }
+            )
+
+        # derive an absolute path for the resource
+        abs_resource_path: str = os.path.abspath(
+            os.path.join(self._directory, filesystem_path, *file_path)
+        )
+
+        # ensure that the path exists as a file
+        if not os.path.exists(abs_resource_path):
+            return NotFound(
+                {"ResourceNotFound": "The specified resource does not exist."}
+            )
+
+        # ensure the file has pending data to append and flush it if so
+        if abs_resource_path in self._pending_appends:
+            # write all of the cache appends in their specified position order
+            with open(abs_resource_path, "a+", encoding="utf-8") as out_file:
+                for pending_append in sorted(
+                    self._pending_appends[abs_resource_path], key=lambda tup: tup[1]
+                ):
+                    out_file.write(pending_append[0].decode("utf-8"))
+
+            # clear out the list of queued appends
+            del self._pending_appends[abs_resource_path]
+
+        # return a success response
+        return Ok({"filesystem_name": filesystem_name, "resource_path": resource_path})
 
     def get_filesystem_properties(self, filesystem_name: str) -> Response:
         # generate the absolute directory path of this filesystem
