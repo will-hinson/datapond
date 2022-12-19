@@ -27,4 +27,5 @@ def BadRequest(return_object: Dict[str, Any]) -> Response:
         Nothing
     """
 
+    # pylint: disable=invalid-name
     return Response(return_object, status=Status.BAD_REQUEST.value)

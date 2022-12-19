@@ -1,9 +1,12 @@
-import json
-from uuid import uuid4
+"""
+module datapond
 
+Contains that Quart route and global definitions that make up the
+datapond API, a simple Azure Data Lake Gen2 local emulator.
+"""
 from quart import Quart, request, Response
 
-from datapond.responses import BadRequest, Forbidden, MethodNotAllowed, Ok
+from datapond.responses import BadRequest, Forbidden, MethodNotAllowed
 from datapond.emulation import Emulator
 
 # initialize the global Quart app for this datapond and a global
@@ -37,6 +40,18 @@ def root() -> Response:
 
 @datapond.route("/<filesystem_name>", methods=["DELETE", "GET", "PUT"])
 def alter_filesystem(filesystem_name: str) -> Response:
+    """
+    Route to handle requests related to ADLS filesystems which are implemented
+    as subdirectories locally.
+
+    Args:
+        filesystem_name (str): The filesystem name that this operation should
+            be performed on
+
+    Returns:
+        Response: A Quart HTTP response that can be returned to the client
+            that is making the request
+    """
     # ensure that we received a 'restype' argument
     if not "restype" in request.args:
         return BadRequest(
@@ -59,9 +74,9 @@ def alter_filesystem(filesystem_name: str) -> Response:
                     return emulator.create_filesystem(filesystem_name)
                 case "GET":
                     return emulator.get_filesystem_properties(filesystem_name)
-                case other:
+                case _:
                     return MethodNotAllowed
-        case other:
+        case _:
             return BadRequest(
                 {
                     "InvalidQueryParameterValue": (
@@ -77,6 +92,19 @@ def alter_filesystem(filesystem_name: str) -> Response:
     "/<filesystem_name>/<path:resource_path>", methods=["DELETE", "GET", "PUT"]
 )
 def alter_resource(filesystem_name: str, resource_path: str) -> Response:
+    """
+    Route to handle requests related to ADLS resources which are implemented
+    as subdirectories and files locally.
+
+    Args:
+        filesystem_name (str): The filesystem name that this operation should
+            be performed on
+        resource_path (str): The relative path to the resource on the filesystem
+
+    Returns:
+        Response: A Quart HTTP response that can be returned to the client
+            that is making the request
+    """
     # check what HTTP method is being used for this request
     match request.method:
         case "DELETE":
@@ -106,7 +134,7 @@ def alter_resource(filesystem_name: str, resource_path: str) -> Response:
                     return emulator.create_directory(filesystem_name, resource_path)
                 case "file":
                     return emulator.create_file(filesystem_name, resource_path)
-                case other:
+                case _:
                     return BadRequest(
                         {
                             "InvalidQueryParameterValue": (
@@ -115,5 +143,5 @@ def alter_resource(filesystem_name: str, resource_path: str) -> Response:
                             )
                         }
                     )
-        case other:
+        case _:
             return MethodNotAllowed

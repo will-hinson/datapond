@@ -28,4 +28,5 @@ def Ok(return_object: Dict[str, Any], headers: Dict[str, str] = None) -> Respons
         Nothing
     """
 
+    # pylint: disable=invalid-name
     return Response(return_object, status=Status.OK.value, headers=headers)

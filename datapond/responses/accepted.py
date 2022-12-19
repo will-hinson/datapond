@@ -28,4 +28,5 @@ def Accepted(return_object: Dict[str, Any]) -> Response:
         Nothing
     """
 
+    # pylint: disable=invalid-name
     return Response(return_object, status=Status.ACCEPTED.value)
