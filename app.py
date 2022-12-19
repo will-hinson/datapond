@@ -47,6 +47,7 @@ def alter_filesystem(filesystem_name: str) -> Response:
             }
         )
 
+    # match the resource type argument
     match request.args["restype"]:
         case "container":
             # determine what operation should be performed on the incoming filesystem
@@ -71,14 +72,37 @@ def alter_filesystem(filesystem_name: str) -> Response:
             )
 
 
-@datapond.route("/<filesystem_name>/<directory_name>", methods=["PUT"])
-def alter_directory(filesystem_name: str, directory_name: str) -> Response:
+@datapond.route("/<filesystem_name>", defaults={"path": ""})
+@datapond.route("/<filesystem_name>/<path:resource_path>", methods=["PUT"])
+def alter_resource(filesystem_name: str, resource_path: str) -> Response:
     # ensure that we received a 'resource' argument
     if not "resource" in request.args:
         return BadRequest(
             {
-                "todo": "A 'resource' parameter must be included in the URI",
+                "MissingRequiredQueryParameter": (
+                    "A query parameter that's mandatory for this request is not specified."
+                )
             }
         )
+
+    # match the resource type parameter
+    match request.args["resource"]:
+        case "directory":
+            # determine what operation should be performed on the incoming directory
+            # based on the HTTP request method
+            match request.method:
+                case "PUT":
+                    return emulator.create_directory(filesystem_name, resource_path)
+                case other:
+                    return MethodNotAllowed
+        case other:
+            return BadRequest(
+                {
+                    "InvalidQueryParameterValue": (
+                        "Value for one of the query parameters specified in the request URI "
+                        + "is invalid."
+                    )
+                }
+            )
 
     return Forbidden

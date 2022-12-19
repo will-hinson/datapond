@@ -8,7 +8,7 @@ from uuid import uuid4
 
 from quart import request, Response
 
-from ..responses import Accepted, BadRequest, Conflict, Created, NotFound, Ok
+from ..responses import Accepted, BadRequest, Conflict, Created, NotFound, Ok, Status
 
 
 class Emulator:
@@ -41,6 +41,39 @@ class Emulator:
         return any(
             map(lambda char: char not in self._valid_characters, list(resource_name))
         )
+
+    def create_directory(self, filesystem_name: str, directory_name: str) -> Response:
+        # parse the directory name into its consituent parts
+        directory_path: List[str] = directory_name.split("/")
+
+        # ensure that all of the components of the directory path have valid names
+        if any(
+            self._contains_invalid_characters(subdirectory)
+            for subdirectory in directory_path
+        ):
+            return BadRequest(
+                {
+                    "InvalidResourceName": (
+                        "The specified resource name contains invalid characters"
+                    ),
+                }
+            )
+
+        # ensure that the target filesystem exists and is valid
+        filesystem_response: Response = self.get_filesystem_properties(filesystem_name)
+        if not filesystem_response.status_code == Status.OK.value:
+            return filesystem_response
+
+        # reassemble the full directory path and create it
+        abs_dir_path: str = os.path.abspath(
+            os.path.join(self._directory, filesystem_name, *directory_path)
+        )
+        try:
+            os.makedirs(abs_dir_path)
+        except FileExistsError:
+            return Conflict({"PathAlreadyExists": "The specified path already exists"})
+
+        return Created({"directory_name": directory_name})
 
     def create_filesystem(self, filesystem_name: str) -> Response:
         # check if any of the characters in the filesystem name are invalid
@@ -185,7 +218,7 @@ class Emulator:
 
         # instantiate a generator to create/return all of the response objects
         # as chunks which is the transport format the Azure client library expects
-        def chunked_response_generator():
+        async def chunked_response_generator():
             for response_object in response_objects:
                 yield json.dumps(response_object).encode()
 
