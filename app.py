@@ -1,8 +1,9 @@
+import json
 from uuid import uuid4
 
 from quart import Quart, request, Response
 
-from datapond.responses import BadRequest, Forbidden, MethodNotAllowed
+from datapond.responses import BadRequest, Forbidden, MethodNotAllowed, Ok
 from datapond.emulation import Emulator
 
 # initialize the global Quart app for this datapond and a global
@@ -26,19 +27,11 @@ def root() -> Response:
         Nothing
     """
 
-    # TODO: 'Filesystem - List' calls here. This will need to be implemented
-    # pylint: disable=pointless-string-statement
-    """
-    return Ok(
-        [],
-        headers={
-            "x-ms-client-request-id": str(uuid4()),
-            "x-ms-request-id": str(uuid4()),
-            "x-ms-version": "0.0",
-        },
-    )
-    """
+    # handle an incoming 'Filesystem - List' call
+    if "comp" in request.args and request.args["comp"] == "list":
+        return emulator.list_filesystems()
 
+    # return 400 Bad Request if any other requests are made to '/'
     return Forbidden
 
 

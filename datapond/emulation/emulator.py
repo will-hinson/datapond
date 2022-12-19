@@ -6,7 +6,7 @@ import string
 from typing import Any, Dict, List
 from uuid import uuid4
 
-from quart import Response
+from quart import request, Response
 
 from ..responses import Accepted, BadRequest, Conflict, Created, NotFound, Ok
 
@@ -159,13 +159,50 @@ class Emulator:
         )
 
     def list_filesystems(self) -> Response:
-        # get a list of subdirectories in the container directory
-        _, filesystems, _ = os.walk(self._directory)
-        print(filesystems)
+        # loop over all of the subdirectories in the container directory and
+        # instantiate filesystem response objects for each of them
+        response_objects: List[Dict[str, Any]] = [
+            {
+                "ContainerItems": [
+                    {
+                        "Name": "test-file-system",
+                        "Deleted": False,
+                        "Version": "0.0",
+                        "Properties": {
+                            "Last-Modified": "Sat, 17 Dec 2022 03:50:18 -0000",
+                            "Etag": str(uuid4()),
+                        },
+                        "Metadata": {},
+                    }
+                ],
+                "Marker": "",
+                "MaxResults": 5_000,
+                "Prefix": "",
+                "ServiceEndpoint": "http://localhost:8000",
+            }
+            for filesystem in next(os.walk(self._directory))[1]
+        ]
 
-        # TODO: implement listing filesystems
+        # instantiate a generator to create/return all of the response objects
+        # as chunks which is the transport format the Azure client library expects
+        def chunked_response_generator():
+            for response_object in response_objects:
+                yield json.dumps(response_object).encode()
 
-        return Ok({})
+        # return a chunked response with the bare minimum headers required for the
+        # Azure client library to accept it
+        return Ok(
+            chunked_response_generator(),
+            headers={
+                "Content-Type": "application/json",
+                "Transfer-Encoding": "chunked",
+                "x-ms-client-request-id": str(
+                    request.headers["x-ms-client-request-id"]
+                ),
+                "x-ms-request-id": str(uuid4()),
+                "x-ms-version": "0.0",
+            },
+        )
 
     @property
     def properties(self) -> Dict[str, List[Dict[str, Any]]]:
