@@ -6,7 +6,7 @@ import string
 from typing import Any, Dict, List
 from uuid import uuid4
 
-from quart import jsonify, request, Response
+from quart import request, Response
 
 from ..responses import Accepted, BadRequest, Conflict, Created, NotFound, Ok, Status
 
@@ -277,42 +277,39 @@ class Emulator:
         # loop over all of the subdirectories in the container directory and
         # instantiate filesystem response objects for each of them
         filesystem_properties: Dict[str, Any] = self.properties
-        response_objects: List[Dict[str, Any]] = [
-            {
-                "ContainerItems": [
-                    {
-                        "Name": filesystem,
-                        "Deleted": False,
-                        "Version": "0.0",
-                        "Properties": {
-                            "Last-Modified": filesystem_properties["properties"][
-                                filesystem
-                            ]["last_modified"],
-                            "Etag": str(uuid4()),
-                        },
-                        "Metadata": {},
-                    }
-                ],
-                "Marker": "",
-                "MaxResults": 5_000,
-                "Prefix": "",
-                "ServiceEndpoint": "http://localhost:8000",
-            }
-            for filesystem in next(os.walk(self._directory))[1]
-        ]
+        response_objects: List[Dict[str, Any]] = {
+            "ContainerItems": [
+                {
+                    "Name": filesystem,
+                    "Deleted": False,
+                    "Version": "0.0",
+                    "Properties": {
+                        "Last-Modified": filesystem_properties["properties"][
+                            filesystem
+                        ]["last_modified"],
+                        "Etag": str(uuid4()),
+                    },
+                    "Metadata": {},
+                }
+                for filesystem in next(os.walk(self._directory))[1]
+            ],
+            "Marker": "",
+            "MaxResults": 5_000,
+            "Prefix": "",
+            "ServiceEndpoint": "http://localhost:8000",
+        }
 
         # instantiate a generator to create/return all of the response objects
         # as chunks which is the transport format the Azure client library expects
         async def chunked_response_generator():
-            for response_object in response_objects:
-                yield json.dumps(response_object).encode()
+            yield json.dumps(response_objects).encode()
 
         # return a chunked response with the bare minimum headers required for the
         # Azure client library to accept it
         return Ok(
             chunked_response_generator(),
             headers={
-                "Content-Type": "application/json",
+                "Content-Type": "application/xml",
                 "Transfer-Encoding": "chunked",
                 "x-ms-client-request-id": str(
                     request.headers["x-ms-client-request-id"]
