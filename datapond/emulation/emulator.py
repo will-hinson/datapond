@@ -107,6 +107,10 @@ class Emulator:
             os.path.join(self._directory, filesystem_name, *file_path)
         )
 
+        # check that the parent directory exists
+        if not os.path.isdir(os.path.abspath(os.path.join(abs_file_path, os.pardir))):
+            return NotFound({"PathNotFound": "The specified path does not exist."})
+
         # create the file and overwrite its contents if it exists. this is the correct
         # behavior according to the docs:
         #
@@ -188,6 +192,84 @@ class Emulator:
         self._write_properties(properties)
 
         return Accepted({"filesystem_name": filesystem_name})
+
+    def delete_path(
+        self, filesystem_name: str, resource_path: str, recursive: bool
+    ) -> Response:
+        # ensure that there are no invalid characters in the filesystem name
+        if self._contains_invalid_characters(filesystem_name):
+            return BadRequest(
+                {
+                    "InvalidResourceName": (
+                        "The specified resource name contains invalid characters"
+                    ),
+                }
+            )
+
+        # parse the file path into its consituent parts
+        file_path: List[str] = resource_path.split("/")
+
+        # ensure that all of the components of the file path have valid names
+        if any(
+            self._contains_invalid_characters(subdirectory, additional_chars=".")
+            for subdirectory in file_path
+        ):
+            return BadRequest(
+                {
+                    "InvalidResourceName": (
+                        "The specified resource name contains invalid characters"
+                    ),
+                }
+            )
+
+        # generate the absolute directory path of this filesystem
+        filesystem_path: str = os.path.abspath(
+            os.path.join(self._directory, filesystem_name)
+        )
+
+        # check if a filesystem directory exists
+        if not os.path.isdir(filesystem_path):
+            # return 404 Not Found if a directory for the filesystem was not found
+            return NotFound(
+                {
+                    "FilesystemNotFound": (
+                        f"Filesystem with name {filesystem_name} does not exist"
+                    ),
+                }
+            )
+
+        # derive an absolute path for the resource
+        abs_resource_path: str = os.path.abspath(
+            os.path.join(self._directory, filesystem_path, *file_path)
+        )
+
+        # ensure that the path exists as a directory or file
+        if not os.path.exists(abs_resource_path):
+            return NotFound({"PathNotFound": "The specified path does not exist."})
+
+        # check if this resource is a directory
+        if os.path.isdir(abs_resource_path):
+            # check if we should do a recursive delete and do it if not
+            if recursive:
+                self._recursive_delete_directory(abs_resource_path)
+                return Ok({"deleted_resource": resource_path})
+
+            # otherwise directly delete the directory and return 409 Conflict
+            # if it's not empty and we can't delete it
+            # pylint: disable=bare-except
+            try:
+                os.rmdir(abs_resource_path)
+            except:
+                return Conflict(
+                    {
+                        "DirectoryNotEmpty": "The recursive query parameter value must be "
+                        + "true to delete a non-empty directory."
+                    }
+                )
+
+        # otherwise, this is a file. just remove it
+        os.remove(abs_resource_path)
+        return Ok({"deleted_resource": resource_path})
 
     def get_filesystem_properties(self, filesystem_name: str) -> Response:
         # check if any of the characters in the filesystem name are invalid

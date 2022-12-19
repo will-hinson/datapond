@@ -73,8 +73,18 @@ def alter_filesystem(filesystem_name: str) -> Response:
 
 
 @datapond.route("/<filesystem_name>", defaults={"path": ""})
-@datapond.route("/<filesystem_name>/<path:resource_path>", methods=["PUT"])
+@datapond.route("/<filesystem_name>/<path:resource_path>", methods=["DELETE", "PUT"])
 def alter_resource(filesystem_name: str, resource_path: str) -> Response:
+    # check if this is a DELETE resource request
+    if request.method == "DELETE":
+        return emulator.delete_path(
+            filesystem_name,
+            resource_path,
+            recursive=request.args["recursive"]
+            if "recursive" in request.args
+            else False,
+        )
+
     # ensure that we received a 'resource' argument
     if not "resource" in request.args:
         return BadRequest(
