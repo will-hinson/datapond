@@ -6,6 +6,7 @@ import string
 from typing import Any, Dict, List, Tuple
 from uuid import uuid4
 
+from dateutil import tz
 from quart import request, Response
 
 from ..responses import Accepted, BadRequest, Conflict, Created, NotFound, Ok, Status
@@ -13,6 +14,10 @@ from ..responses import Accepted, BadRequest, Conflict, Created, NotFound, Ok, S
 
 class Emulator:
     _directory: str = None
+    _file_mimetype_map: Dict[str, str] = {
+        ".csv": "text/csv",
+        ".json": "application/json",
+    }
     _properties_path: str = None
     _valid_characters: str = string.ascii_letters + string.digits + "_-"
 
@@ -407,6 +412,54 @@ class Emulator:
             },
         )
 
+    def _list_dir(
+        self, filesystem_path: str, directory_path: str, recursive: bool
+    ) -> List[Dict[str, Any]]:
+        # first, walk the incoming directory
+        _, subdirectories, file_names = (
+            set(iterable) for iterable in next(os.walk(directory_path))
+        )
+
+        # create path objects for all of the files and directories in this directory
+        return_objects: List[Dict[str, Any]] = []
+        relative_path: str = directory_path[len(filesystem_path) :]
+        for path in subdirectories | file_names:
+            # get the filesystem-relative and absolute paths for this resource
+            resource_path: str = os.path.join(relative_path, path)
+            absolute_path: str = os.path.join(directory_path, path)
+
+            # make/append the path object
+            return_objects.append(
+                {
+                    "name": resource_path.strip("/"),
+                    "creationTime": datetime.fromtimestamp(
+                        os.path.getctime(absolute_path)
+                    )
+                    .astimezone(tz.gettz("UTC"))
+                    .strftime("%a, %d %b %Y %H:%M:%S %Z"),
+                    "isDirectory": path in subdirectories,
+                    "lastModified": datetime.fromtimestamp(
+                        os.path.getmtime(absolute_path)
+                    )
+                    .astimezone(tz.gettz("UTC"))
+                    .strftime("%a, %d %b %Y %H:%M:%S %Z"),
+                    "contentLength": os.path.getsize(absolute_path),
+                }
+            )
+
+        # if this call is recursive, recurse into all subdirectories and
+        # add their contents too
+        if recursive:
+            for subdirectory in subdirectories:
+                return_objects += self._list_dir(
+                    filesystem_path,
+                    os.path.join(directory_path, subdirectory),
+                    recursive=True,
+                )
+
+        # return all of the listed objects
+        return return_objects
+
     def list_filesystems(self) -> Response:
         # loop over all of the subdirectories in the container directory and
         # instantiate filesystem response objects for each of them
@@ -443,7 +496,62 @@ class Emulator:
         return Ok(
             chunked_response_generator(),
             headers={
-                "Content-Type": "application/xml",
+                "Content-Type": "application/json",
+                "Transfer-Encoding": "chunked",
+                "x-ms-client-request-id": str(
+                    request.headers["x-ms-client-request-id"]
+                ),
+                "x-ms-request-id": str(uuid4()),
+                "x-ms-version": "0.0",
+            },
+        )
+
+    def list_paths(
+        self, filesystem_name: str, directory_name: str, recursive: bool
+    ) -> Response:
+        # get the absolute path to the filesystem
+        filesystem_path: str = os.path.abspath(
+            os.path.join(self._directory, filesystem_name)
+        )
+
+        # parse the directory name into its consituent parts
+        directory_path: List[str] = directory_name.split("/")
+
+        # ensure that all of the components of the directory path have valid names
+        if any(
+            self.contains_invalid_characters(subdirectory)
+            for subdirectory in directory_path
+        ):
+            return BadRequest(
+                {
+                    "InvalidResourceName": (
+                        "The specified resource name contains invalid characters"
+                    ),
+                }
+            )
+
+        # ensure that the target filesystem exists and is valid
+        filesystem_response: Response = self.get_filesystem_properties(filesystem_name)
+        if not filesystem_response.status_code == Status.OK.value:
+            return filesystem_response
+
+        # get an absolute path for the target directory
+        abs_dir_path: str = os.path.abspath(
+            os.path.join(self._directory, filesystem_name, *directory_path)
+        )
+
+        # list out the directory recursing as necessary
+        dir_listing: List[Dict[str, Any]] = self._list_dir(
+            abs_dir_path, filesystem_path, recursive
+        )
+
+        def chunked_response_generator():
+            yield json.dumps({"paths": dir_listing}).encode()
+
+        return Ok(
+            chunked_response_generator(),
+            headers={
+                "Content-Type": "application/json",
                 "Transfer-Encoding": "chunked",
                 "x-ms-client-request-id": str(
                     request.headers["x-ms-client-request-id"]
@@ -503,13 +611,14 @@ class Emulator:
             )
 
         # read and return the file
+        file_extension: str = os.path.splitext(abs_resource_path)[1].lower()
         with open(abs_resource_path, "r", encoding="utf-8") as in_file:
             data: str = in_file.read()
             return Ok(
                 data,
                 headers={
-                    "Content-Type": "application/json"
-                    if os.path.splitext(abs_resource_path)[1].lower() == ".json"
+                    "Content-Type": self._file_mimetype_map[file_extension]
+                    if file_extension in self._file_mimetype_map
                     else "text/plain",
                     "Content-Range": f"bytes 1-{len(data)}/{len(data)}",
                 },
