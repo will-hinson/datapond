@@ -102,13 +102,15 @@ class Emulator:
         if not filesystem_response.status_code == Status.OK.value:
             return filesystem_response
 
-        # reassemble the full file path and touch it
+        # reassemble the full file path
         abs_file_path: str = os.path.abspath(
             os.path.join(self._directory, filesystem_name, *file_path)
         )
-        if os.path.exists(abs_file_path):
-            return Conflict({"PathAlreadyExists": "The specified path already exists"})
 
+        # create the file and overwrite its contents if it exists. this is the correct
+        # behavior according to the docs:
+        #
+        # http://learn.microsoft.com/en-us/rest/api/storageservices/datalakestoragegen2/path/create
         with open(abs_file_path, "w", encoding="utf-8") as touch_file:
             pass
         return Created({"file_name": touch_file})
