@@ -6,7 +6,7 @@ import string
 from typing import Any, Dict, List
 from uuid import uuid4
 
-from quart import request, Response
+from quart import jsonify, request, Response
 
 from ..responses import Accepted, BadRequest, Conflict, Created, NotFound, Ok, Status
 

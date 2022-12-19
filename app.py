@@ -16,7 +16,7 @@ emulator: Emulator = Emulator("./filesystems")
 
 
 @datapond.route("/")
-def root() -> Response:
+async def root() -> Response:
     """
     Route that marks the index of this API as Forbidden.
 
@@ -39,7 +39,7 @@ def root() -> Response:
 
 
 @datapond.route("/<filesystem_name>", methods=["DELETE", "GET", "PUT"])
-def alter_filesystem(filesystem_name: str) -> Response:
+async def alter_filesystem(filesystem_name: str) -> Response:
     """
     Route to handle requests related to ADLS filesystems which are implemented
     as subdirectories locally.
@@ -102,7 +102,7 @@ def alter_filesystem(filesystem_name: str) -> Response:
 @datapond.route(
     "/<filesystem_name>/<path:resource_path>", methods=["DELETE", "GET", "PUT"]
 )
-def alter_resource(filesystem_name: str, resource_path: str) -> Response:
+async def alter_resource(filesystem_name: str, resource_path: str) -> Response:
     """
     Route to handle requests related to ADLS resources which are implemented
     as subdirectories and files locally.
