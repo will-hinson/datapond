@@ -37,7 +37,7 @@ class Emulator:
         if not os.path.isfile(self._properties_path):
             self._write_properties({"properties": {}})
 
-    def _contains_invalid_characters(
+    def contains_invalid_characters(
         self, resource_name: str, additional_chars: str = ""
     ) -> bool:
         return any(
@@ -53,7 +53,7 @@ class Emulator:
 
         # ensure that all of the components of the directory path have valid names
         if any(
-            self._contains_invalid_characters(subdirectory)
+            self.contains_invalid_characters(subdirectory)
             for subdirectory in directory_path
         ):
             return BadRequest(
@@ -86,7 +86,7 @@ class Emulator:
 
         # ensure that all of the components of the file path have valid names
         if any(
-            self._contains_invalid_characters(subdirectory, additional_chars=".")
+            self.contains_invalid_characters(subdirectory, additional_chars=".")
             for subdirectory in file_path
         ):
             return BadRequest(
@@ -120,16 +120,6 @@ class Emulator:
         return Created({"file_name": touch_file})
 
     def create_filesystem(self, filesystem_name: str) -> Response:
-        # check if any of the characters in the filesystem name are invalid
-        if self._contains_invalid_characters(filesystem_name):
-            return BadRequest(
-                {
-                    "InvalidResourceName": (
-                        "The specified resource name contains invalid characters"
-                    ),
-                }
-            )
-
         # generate the absolute directory path of this filesystem
         filesystem_path: str = os.path.abspath(
             os.path.join(self._directory, filesystem_name)
@@ -159,16 +149,6 @@ class Emulator:
         return Created({"filesystem_name": filesystem_name})
 
     def delete_filesystem(self, filesystem_name: str) -> Response:
-        # check if any of the characters in the filesystem name are invalid
-        if self._contains_invalid_characters(filesystem_name):
-            return BadRequest(
-                {
-                    "InvalidResourceName": (
-                        "The specified resource name contains invalid characters"
-                    ),
-                }
-            )
-
         # generate the absolute directory path of this filesystem
         filesystem_path: str = os.path.abspath(
             os.path.join(self._directory, filesystem_name)
@@ -196,22 +176,12 @@ class Emulator:
     def delete_path(
         self, filesystem_name: str, resource_path: str, recursive: bool
     ) -> Response:
-        # ensure that there are no invalid characters in the filesystem name
-        if self._contains_invalid_characters(filesystem_name):
-            return BadRequest(
-                {
-                    "InvalidResourceName": (
-                        "The specified resource name contains invalid characters"
-                    ),
-                }
-            )
-
         # parse the file path into its consituent parts
         file_path: List[str] = resource_path.split("/")
 
         # ensure that all of the components of the file path have valid names
         if any(
-            self._contains_invalid_characters(subdirectory, additional_chars=".")
+            self.contains_invalid_characters(subdirectory, additional_chars=".")
             for subdirectory in file_path
         ):
             return BadRequest(
@@ -272,16 +242,6 @@ class Emulator:
         return Ok({"deleted_resource": resource_path})
 
     def get_filesystem_properties(self, filesystem_name: str) -> Response:
-        # check if any of the characters in the filesystem name are invalid
-        if self._contains_invalid_characters(filesystem_name):
-            return BadRequest(
-                {
-                    "InvalidResourceName": (
-                        "The specified resource name contains invalid characters"
-                    ),
-                }
-            )
-
         # generate the absolute directory path of this filesystem
         filesystem_path: str = os.path.abspath(
             os.path.join(self._directory, filesystem_name)
@@ -368,22 +328,12 @@ class Emulator:
             return json.loads(properties_file.read())
 
     def read_path(self, filesystem_name: str, resource_path: str) -> Response:
-        # ensure that there are no invalid characters in the filesystem name
-        if self._contains_invalid_characters(filesystem_name):
-            return BadRequest(
-                {
-                    "InvalidResourceName": (
-                        "The specified resource name contains invalid characters"
-                    ),
-                }
-            )
-
         # parse the file path into its consituent parts
         file_path: List[str] = resource_path.split("/")
 
         # ensure that all of the components of the file path have valid names
         if any(
-            self._contains_invalid_characters(subdirectory, additional_chars=".")
+            self.contains_invalid_characters(subdirectory, additional_chars=".")
             for subdirectory in file_path
         ):
             return BadRequest(

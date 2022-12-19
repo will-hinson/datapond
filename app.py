@@ -52,6 +52,7 @@ def alter_filesystem(filesystem_name: str) -> Response:
         Response: A Quart HTTP response that can be returned to the client
             that is making the request
     """
+
     # ensure that we received a 'restype' argument
     if not "restype" in request.args:
         return BadRequest(
@@ -59,6 +60,16 @@ def alter_filesystem(filesystem_name: str) -> Response:
                 "MissingRequiredQueryParameter": (
                     "A query parameter that's mandatory for this request is not specified."
                 )
+            }
+        )
+
+    # check if any of the characters in the filesystem name are invalid
+    if emulator.contains_invalid_characters(filesystem_name):
+        return BadRequest(
+            {
+                "InvalidResourceName": (
+                    "The specified resource name contains invalid characters"
+                ),
             }
         )
 
@@ -105,6 +116,17 @@ def alter_resource(filesystem_name: str, resource_path: str) -> Response:
         Response: A Quart HTTP response that can be returned to the client
             that is making the request
     """
+
+    # check if any of the characters in the filesystem name are invalid
+    if emulator.contains_invalid_characters(filesystem_name):
+        return BadRequest(
+            {
+                "InvalidResourceName": (
+                    "The specified resource name contains invalid characters"
+                ),
+            }
+        )
+
     # check what HTTP method is being used for this request
     match request.method:
         case "DELETE":
