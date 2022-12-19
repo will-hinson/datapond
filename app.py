@@ -95,6 +95,14 @@ def alter_resource(filesystem_name: str, resource_path: str) -> Response:
                     return emulator.create_directory(filesystem_name, resource_path)
                 case other:
                     return MethodNotAllowed
+        case "file":
+            # determine what operation should be performed on the incoming file
+            # based on the HTTP request metho
+            match request.method:
+                case "PUT":
+                    return emulator.create_file(filesystem_name, resource_path)
+                case other:
+                    return MethodNotAllowed
         case other:
             return BadRequest(
                 {

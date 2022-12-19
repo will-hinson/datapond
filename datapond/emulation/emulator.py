@@ -37,9 +37,14 @@ class Emulator:
         if not os.path.isfile(self._properties_path):
             self._write_properties({"properties": {}})
 
-    def _contains_invalid_characters(self, resource_name: str) -> bool:
+    def _contains_invalid_characters(
+        self, resource_name: str, additional_chars: str = ""
+    ) -> bool:
         return any(
-            map(lambda char: char not in self._valid_characters, list(resource_name))
+            map(
+                lambda char: char not in self._valid_characters + additional_chars,
+                list(resource_name),
+            )
         )
 
     def create_directory(self, filesystem_name: str, directory_name: str) -> Response:
@@ -74,6 +79,39 @@ class Emulator:
             return Conflict({"PathAlreadyExists": "The specified path already exists"})
 
         return Created({"directory_name": directory_name})
+
+    def create_file(self, filesystem_name: str, file_name: str) -> Response:
+        # parse the file path into its consituent parts
+        file_path: List[str] = file_name.split("/")
+
+        # ensure that all of the components of the file path have valid names
+        if any(
+            self._contains_invalid_characters(subdirectory, additional_chars=".")
+            for subdirectory in file_path
+        ):
+            return BadRequest(
+                {
+                    "InvalidResourceName": (
+                        "The specified resource name contains invalid characters"
+                    ),
+                }
+            )
+
+        # ensure that the target filesystem exists and is valid
+        filesystem_response: Response = self.get_filesystem_properties(filesystem_name)
+        if not filesystem_response.status_code == Status.OK.value:
+            return filesystem_response
+
+        # reassemble the full file path and touch it
+        abs_file_path: str = os.path.abspath(
+            os.path.join(self._directory, filesystem_name, *file_path)
+        )
+        if os.path.exists(abs_file_path):
+            return Conflict({"PathAlreadyExists": "The specified path already exists"})
+
+        with open(abs_file_path, "w", encoding="utf-8") as touch_file:
+            pass
+        return Created({"file_name": touch_file})
 
     def create_filesystem(self, filesystem_name: str) -> Response:
         # check if any of the characters in the filesystem name are invalid
