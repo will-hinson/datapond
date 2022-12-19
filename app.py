@@ -53,16 +53,6 @@ async def alter_filesystem(filesystem_name: str) -> Response:
             that is making the request
     """
 
-    # ensure that we received a 'restype' argument
-    if not "restype" in request.args:
-        return BadRequest(
-            {
-                "MissingRequiredQueryParameter": (
-                    "A query parameter that's mandatory for this request is not specified."
-                )
-            }
-        )
-
     # check if any of the characters in the filesystem name are invalid
     if emulator.contains_invalid_characters(filesystem_name):
         return BadRequest(
@@ -70,6 +60,29 @@ async def alter_filesystem(filesystem_name: str) -> Response:
                 "InvalidResourceName": (
                     "The specified resource name contains invalid characters"
                 ),
+            }
+        )
+
+    # check if we received a 'resource' parameter, signifying that the
+    # client is calling 'Path - List' and wants a listing
+    if "resource" in request.args and request.args["resource"] == "filesystem":
+        return emulator.list_paths(
+            filesystem_name,
+            recursive=request.args["recursive"] == "true"
+            if "recursive" in request.args
+            else True,
+            directory_name=request.args["directory"]
+            if "directory" in request.args
+            else "",
+        )
+
+    # ensure that we at least received a 'restype' argument
+    if not "restype" in request.args:
+        return BadRequest(
+            {
+                "MissingRequiredQueryParameter": (
+                    "A query parameter that's mandatory for this request is not specified."
+                )
             }
         )
 
