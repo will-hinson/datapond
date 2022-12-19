@@ -542,7 +542,7 @@ class Emulator:
 
         # list out the directory recursing as necessary
         dir_listing: List[Dict[str, Any]] = self._list_dir(
-            abs_dir_path, filesystem_path, recursive
+            filesystem_path, abs_dir_path, recursive
         )
 
         def chunked_response_generator():

@@ -68,7 +68,7 @@ async def alter_filesystem(filesystem_name: str) -> Response:
     if "resource" in request.args and request.args["resource"] == "filesystem":
         return emulator.list_paths(
             filesystem_name,
-            recursive=request.args["recursive"]
+            recursive=request.args["recursive"] == "true"
             if "recursive" in request.args
             else True,
             directory_name=request.args["directory"]
