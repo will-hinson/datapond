@@ -117,7 +117,8 @@ async def alter_filesystem(filesystem_name: str) -> Response:
 
 @datapond.route("/<filesystem_name>", defaults={"path": ""})
 @datapond.route(
-    "/<filesystem_name>/<path:resource_path>", methods=["DELETE", "GET", "PATCH", "PUT"]
+    "/<filesystem_name>/<path:resource_path>",
+    methods=["DELETE", "GET", "HEAD", "PATCH", "PUT"],
 )
 async def alter_resource(filesystem_name: str, resource_path: str) -> Response:
     """
@@ -157,6 +158,8 @@ async def alter_resource(filesystem_name: str, resource_path: str) -> Response:
             )
         case "GET":
             return emulator.read_path(filesystem_name, resource_path)
+        case "HEAD":
+            return emulator.get_path_properties(filesystem_name, resource_path)
         case "PATCH":
             # ensure that we got an 'action' parameter
             if "action" not in request.args:

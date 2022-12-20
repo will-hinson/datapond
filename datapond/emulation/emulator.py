@@ -420,6 +420,68 @@ class Emulator:
             },
         )
 
+    def get_path_properties(self, filesystem_name: str, resource_path: str) -> Response:
+        # parse the file path into its consituent parts
+        file_path: List[str] = resource_path.split("/")
+
+        # ensure that all of the components of the file path have valid names
+        if any(
+            self.contains_invalid_characters(subdirectory, additional_chars=".")
+            for subdirectory in file_path
+        ):
+            return BadRequest(
+                {
+                    "InvalidResourceName": (
+                        "The specified resource name contains invalid characters"
+                    ),
+                }
+            )
+
+        # generate the absolute directory path of this filesystem
+        filesystem_path: str = os.path.abspath(
+            os.path.join(self._directory, filesystem_name)
+        )
+
+        # check if a filesystem directory exists
+        if not os.path.isdir(filesystem_path):
+            # return 404 Not Found if a directory for the filesystem was not found
+            return NotFound(
+                {
+                    "FilesystemNotFound": (
+                        f"Filesystem with name {filesystem_name} does not exist"
+                    ),
+                }
+            )
+
+        # derive an absolute path for the resource
+        abs_resource_path: str = os.path.abspath(
+            os.path.join(self._directory, filesystem_path, *file_path)
+        )
+
+        # ensure that the path exists as a file
+        if not os.path.exists(abs_resource_path):
+            return NotFound(
+                {"ResourceNotFound": "The specified resource does not exist."}
+            )
+
+        # return the properties of the file
+        return Ok(
+            {},
+            headers={
+                "Last-Modified": datetime.fromtimestamp(
+                    os.path.getmtime(abs_resource_path)
+                )
+                .astimezone(tz.gettz("UTC"))
+                .strftime("%a, %d %b %Y %H:%M:%S %Z"),
+                "x-ms-creation-time": datetime.fromtimestamp(
+                    os.path.getctime(abs_resource_path)
+                )
+                .astimezone(tz.gettz("UTC"))
+                .strftime("%a, %d %b %Y %H:%M:%S %Z"),
+                "Content-Length": os.path.getsize(abs_resource_path),
+            },
+        )
+
     def _list_dir(
         self, filesystem_path: str, directory_path: str, recursive: bool
     ) -> List[Dict[str, Any]]:
