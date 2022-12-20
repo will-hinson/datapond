@@ -1,2 +1,5 @@
+python-dateutil
+
+gunicorn
 quart
 uvicorn
