@@ -4,6 +4,8 @@ module datapond
 Contains that Quart route and global definitions that make up the
 datapond API, a simple Azure Data Lake Gen2 local emulator.
 """
+from os import environ as env
+
 from quart import Quart, request, Response
 
 from datapond.responses import BadRequest, Forbidden, MethodNotAllowed
@@ -12,7 +14,9 @@ from datapond.emulation import Emulator
 # initialize the global Quart app for this datapond and a global
 # data lake emulator instance
 datapond: Quart = Quart(__name__)
-emulator: Emulator = Emulator("./filesystems")
+emulator: Emulator = Emulator(
+    env["DATAPOND_FS_DIR"] if "DATAPOND_FS_DIR" in env else "./filesystems"
+)
 
 
 @datapond.route("/")

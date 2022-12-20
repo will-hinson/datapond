@@ -27,6 +27,14 @@ class Emulator:
         # parse/store the specified container directory
         self._directory = os.path.abspath(container_directory)
 
+        # check if the container directory is the same as the project root
+        if self._directory == os.path.abspath(
+            os.path.join(__file__, os.pardir, os.pardir, os.pardir)
+        ):
+            raise RuntimeError(
+                "The filesystems root directory may not be the same as the project root"
+            )
+
         # check if the container directory exists as a file. throw an exception
         # if this is the case as we don't want to overwrite a directory with a file
         if os.path.isfile(self._directory):
