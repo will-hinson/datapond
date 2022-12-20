@@ -217,7 +217,7 @@ class Emulator:
 
         # ensure that the target filesystem exists and is valid
         filesystem_response: Response = self.get_filesystem_properties(filesystem_name)
-        if not filesystem_response.status_code == Status.OK.value:
+        if filesystem_response.status_code != Status.OK.value:
             return filesystem_response
 
         # reassemble the full directory path and create it
@@ -266,7 +266,7 @@ class Emulator:
 
         # ensure that the target filesystem exists and is valid
         filesystem_response: Response = self.get_filesystem_properties(filesystem_name)
-        if not filesystem_response.status_code == Status.OK.value:
+        if filesystem_response.status_code != Status.OK.value:
             return filesystem_response
 
         # reassemble the full file path
@@ -720,7 +720,7 @@ class Emulator:
 
         # ensure that the target filesystem exists and is valid
         filesystem_response: Response = self.get_filesystem_properties(filesystem_name)
-        if not filesystem_response.status_code == Status.OK.value:
+        if filesystem_response.status_code != Status.OK.value:
             return filesystem_response
 
         # get an absolute path for the target directory
