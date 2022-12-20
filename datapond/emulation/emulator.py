@@ -5,6 +5,7 @@ Contains the definition of the Emulator class which provides
 a basic emulation of the ADLS Gen2 API
 """
 
+# pylint: disable=too-many-lines
 from datetime import datetime
 import email
 import json
@@ -369,6 +370,25 @@ class Emulator:
     def delete_path(
         self, filesystem_name: str, resource_path: str, recursive: bool
     ) -> Response:
+        """
+        Deletes the file resource located in the specified filesystem at the
+        provided path.
+
+        Args:
+            filesystem_name (str): The name of the filesystem containing the
+                target file resource
+            resource_path (str): The relative path of the file resource in
+                the filesystem
+            recursive (bool): Represents whether a directory deletion should
+                be performed recusively
+
+        Returns:
+            Response: A Quart response indicating what happened
+
+        Raises:
+            Nothing
+        """
+
         # parse the file path into its consituent parts
         file_path: List[str] = resource_path.split("/")
 
@@ -435,6 +455,20 @@ class Emulator:
         return Ok({"deleted_resource": resource_path})
 
     def flush_path(self, filesystem_name: str, resource_path: str) -> Response:
+        """
+        Flushes any pending appends for the specified file resource out to
+        the underlying file.
+
+        Args:
+            filesystem_name (str): The name of the filesystem containing the
+                target resource
+            resource_path (str): The relative path of the file resource in
+                the filesystem
+
+        Returns:
+            Response: A Quart response indicating what happened
+        """
+
         # parse the file path into its consituent parts
         file_path: List[str] = resource_path.split("/")
 
@@ -494,6 +528,20 @@ class Emulator:
         return Ok({"filesystem_name": filesystem_name, "resource_path": resource_path})
 
     def get_filesystem_properties(self, filesystem_name: str) -> Response:
+        """
+        Returns properties for the filesystem with the specified name.
+
+        Args:
+            filesystem_name (str): The name of the filesystem to get
+                properties for
+
+        Returns:
+            Response: A Quart response encompassing the properties
+
+        Raises:
+            Nothing
+        """
+
         # generate the absolute directory path of this filesystem
         filesystem_path: str = os.path.abspath(
             os.path.join(self._directory, filesystem_name)
@@ -526,6 +574,23 @@ class Emulator:
         )
 
     def get_path_properties(self, filesystem_name: str, resource_path: str) -> Response:
+        """
+        Returns properties for the file resource with the specified path in the
+        provided filesystem.
+
+        Args:
+            filesystem_name (str): The name of the filesystem to get
+                properties from
+            resource_path (str): The relative path of the resource to
+                get files for
+
+        Returns:
+            Response: A Quart response encompassing the properties
+
+        Raises:
+            Nothing
+        """
+
         # parse the file path into its consituent parts
         file_path: List[str] = resource_path.split("/")
 
@@ -697,6 +762,24 @@ class Emulator:
     def list_paths(
         self, filesystem_name: str, directory_name: str, recursive: bool
     ) -> Response:
+        """
+        Performs a directory listing of the provided directory in the
+        specified filesystem.
+
+        Args:
+            filesystem_name (str): The name of the filesystem to get
+                a directory listing from
+            directory_name (str): The name of the directory to list
+            recursive (bool): Represents whether or not the directory
+                listing should be recursive
+
+        Returns:
+            Response: A Quart response indicating what happened
+
+        Raises:
+            Nothing
+        """
+
         # get the absolute path to the filesystem
         filesystem_path: str = os.path.abspath(
             os.path.join(self._directory, filesystem_name)
@@ -870,6 +953,20 @@ class Emulator:
     def set_filesystem_properties(
         self, filesystem_name: str, properties_list: str
     ) -> Response:
+        """
+        Sets properties for the provided filesystem.
+
+        Args:
+            filesystem_name (str): The filesystem to set properties for
+            properties_list (str): The list of properties to set
+
+        Returns:
+            Response: A Quart Response indicating what happened
+
+        Raises:
+            Nothing
+        """
+
         # generate the absolute directory path of this filesystem
         filesystem_path: str = os.path.abspath(
             os.path.join(self._directory, filesystem_name)
