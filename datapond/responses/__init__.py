@@ -1,3 +1,10 @@
+"""
+module datapond.responses
+
+Contains definitions for a number of standard responses and
+HTTP status codes that may be returned from Quart endpoints.
+"""
+
 from .accepted import Accepted
 from .badrequest import BadRequest
 from .conflict import Conflict
