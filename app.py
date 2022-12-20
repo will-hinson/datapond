@@ -57,6 +57,7 @@ async def alter_filesystem(filesystem_name: str) -> Response:
             that is making the request
     """
 
+    # pylint: disable=too-many-return-statements
     # check if any of the characters in the filesystem name are invalid
     if emulator.contains_invalid_characters(filesystem_name):
         return BadRequest(
