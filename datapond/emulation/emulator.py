@@ -721,6 +721,49 @@ class Emulator:
         # finally, delete this directory
         os.rmdir(target_directory)
 
+    def set_filesystem_properties(
+        self, filesystem_name: str, properties_list: str
+    ) -> Response:
+        # generate the absolute directory path of this filesystem
+        filesystem_path: str = os.path.abspath(
+            os.path.join(self._directory, filesystem_name)
+        )
+
+        # check if a filesystem directory exists
+        if not os.path.isdir(filesystem_path):
+            # return 404 Not Found if a directory for the filesystem was not found
+            return NotFound(
+                {
+                    "FilesystemNotFound": (
+                        f"Filesystem with name {filesystem_name} does not exist"
+                    ),
+                }
+            )
+
+        # load the current known filesystem properties and get the properties for this filesystem
+        filesystem_properties: Dict[str, Any] = self.properties["properties"][
+            filesystem_name
+        ]
+
+        # parse the incoming properties list
+        for property_pair in properties_list.split(","):
+            # find the first occurrence of '=' in this key/value pair
+            kv_sep_index: int = property_pair.index("=")
+
+            # get the key/value pair for the property
+            key, value = property_pair[:kv_sep_index], property_pair[kv_sep_index + 1 :]
+
+            # add the key/value pair for this filesystem
+            filesystem_properties[key] = value
+
+        # write the new properties dict
+        properties: Dict[str, Any] = self.properties
+        properties["properties"][filesystem_name] = filesystem_properties
+        self._write_properties(properties)
+
+        # return success to the client
+        return Ok({"set_properties_for": filesystem_name})
+
     def _write_properties(self, properties: Dict[str, Any]) -> None:
         with open(self._properties_path, "w", encoding="utf-8") as properties_file:
             properties_file.write(json.dumps(properties, indent=2))

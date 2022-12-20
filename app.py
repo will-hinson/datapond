@@ -99,6 +99,16 @@ async def alter_filesystem(filesystem_name: str) -> Response:
                 case "DELETE":
                     return emulator.delete_filesystem(filesystem_name)
                 case "PUT":
+                    # determine if this is a request to PUT filesystem properties or tto
+                    # create a new filesystem
+                    if (
+                        "comp" in request.args
+                        and request.args["comp"].lower() == "metadata"
+                    ):
+                        return emulator.set_filesystem_properties(
+                            filesystem_name, request.headers["x-ms-properties"]
+                        )
+
                     return emulator.create_filesystem(filesystem_name)
                 case "GET":
                     return emulator.get_filesystem_properties(filesystem_name)
