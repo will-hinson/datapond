@@ -1,0 +1,10 @@
+version: '2.0'
+
+services:
+  dataflow:
+    build: .
+    command: uvicorn app:datapond --port 80
+    volumes:
+      - ./:/usr/src/datapond
+    ports:
+      - 80:80
