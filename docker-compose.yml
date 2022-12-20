@@ -1,0 +1,10 @@
+version: '2.0'
+
+services:
+  datapond:
+    build: .
+    command: gunicorn -k uvicorn.workers.UvicornWorker --bind=0.0.0.0:80 app:datapond
+    volumes:
+      - ./:/usr/src/datapond
+    ports:
+      - 80:80
