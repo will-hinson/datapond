@@ -13,4 +13,5 @@ from .forbidden import Forbidden
 from .methodnotallowed import MethodNotAllowed
 from .notfound import NotFound
 from .ok import Ok
+from .serviceunavailable import ServiceUnavailable
 from .status import Status
