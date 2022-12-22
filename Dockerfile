@@ -8,6 +8,10 @@ WORKDIR /usr/src/datapond
 ENV PYTHONDONTWRITEBYTECODE 1
 ENV PYTHONUNBUFFERED 1
 
+# declare a default failure chance of 0%. this should be
+# set in a range of 0 (0%) to 1 (100%)
+ENV DATAPOND_FAILURE_CHANCE 0.0
+
 # copy the entire project to the work directory
 ADD . /usr/src/datapond/
 
