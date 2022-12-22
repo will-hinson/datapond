@@ -54,7 +54,7 @@ def random_failure(route_func: FunctionType) -> FunctionType:
     # declare a failure closure wrapping the route func that will randomly
     # return a failure response to the client
     @wraps(route_func)
-    def failure_closure(*args: Tuple[Any], **kwargs: Dict[str, Any]) -> Response:
+    async def failure_closure(*args: Tuple[Any], **kwargs: Dict[str, Any]) -> Response:
         # if a random match is made based on the provided failure chance,
         # return a 503 response that the server cannot process the request
         if random() < failure_chance:
@@ -68,7 +68,7 @@ def random_failure(route_func: FunctionType) -> FunctionType:
             )
 
         # otherwise, invoke the wrapped route function and return its response
-        return route_func(*args, **kwargs)
+        return await route_func(*args, **kwargs)
 
     # return the wrapped route function
     return failure_closure
