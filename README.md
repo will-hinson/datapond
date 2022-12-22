@@ -41,7 +41,7 @@ pip install -r requirements.txt
 Finally, start `datapond` using Uvicorn:
 
 ```sh
-uvicorn datapond/app:datapond --port 8000.
+uvicorn app:datapond --port 8000.
 ```
 
 ## Configuration
