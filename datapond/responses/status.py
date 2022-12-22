@@ -26,3 +26,5 @@ class Status(int, Enum):
     NOT_FOUND: int = 404
     METHOD_NOT_ALLOWED: int = 405
     CONFLICT: int = 409
+
+    SERVICE_UNAVAILABLE: int = 503

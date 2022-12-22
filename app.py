@@ -4,12 +4,23 @@ module datapond
 Contains that Quart route and global definitions that make up the
 datapond API, a simple Azure Data Lake Gen2 local emulator.
 """
+from functools import wraps
+import logging
+import os
 from os import environ as env
+from random import random
+from types import FunctionType
+from typing import Any, Dict, Tuple
 
 from quart import Quart, request, Response
 
-from datapond.responses import BadRequest, Forbidden, MethodNotAllowed
 from datapond.emulation import Emulator
+from datapond.responses import (
+    BadRequest,
+    Forbidden,
+    MethodNotAllowed,
+    ServiceUnavailable,
+)
 
 # initialize the global Quart app for this datapond and a global
 # data lake emulator instance
@@ -18,8 +29,53 @@ emulator: Emulator = Emulator(
     env["DATAPOND_FS_DIR"] if "DATAPOND_FS_DIR" in env else "./filesystems"
 )
 
+# set up a global logging configuration
+logging.basicConfig(
+    format=f"[%(asctime)s] [{os.getpid()}] [%(levelname)s] %(message)s",
+    level=logging.INFO,
+    datefmt="%Y-%m-%d %H:%M:%S %z",
+)
+
+# define a decorator that will give routes a random chance of failure if
+# the DATAPOND_FAILURE_CHANCE variable has a value
+def random_failure(route_func: FunctionType) -> FunctionType:
+    # pylint: disable=missing-docstring
+
+    # get the random chance of failure as specified by the user
+    failure_chance: float = (
+        float(env["DATAPOND_FAILURE_CHANCE"])
+        if "DATAPOND_FAILURE_CHANCE" in env
+        else 0.0
+    )
+    logging.info(
+        "datapond: Random failure chance set to %s%%", round(failure_chance * 100, 2)
+    )
+
+    # declare a failure closure wrapping the route func that will randomly
+    # return a failure response to the client
+    @wraps(route_func)
+    async def failure_closure(*args: Tuple[Any], **kwargs: Dict[str, Any]) -> Response:
+        # if a random match is made based on the provided failure chance,
+        # return a 503 response that the server cannot process the request
+        if random() < failure_chance:
+            return ServiceUnavailable(
+                {
+                    "ServerBusy": (
+                        "The server is currently unable to receive requests. "
+                        + "Please retry your request."
+                    )
+                }
+            )
+
+        # otherwise, invoke the wrapped route function and return its response
+        return await route_func(*args, **kwargs)
+
+    # return the wrapped route function
+    return failure_closure
+
 
 @datapond.route("/")
+@random_failure
 async def root() -> Response:
     """
     Route that marks the index of this API as Forbidden.
@@ -43,6 +99,7 @@ async def root() -> Response:
 
 
 @datapond.route("/<filesystem_name>", methods=["DELETE", "GET", "PUT"])
+@random_failure
 async def alter_filesystem(filesystem_name: str) -> Response:
     """
     Route to handle requests related to ADLS filesystems which are implemented
@@ -131,6 +188,7 @@ async def alter_filesystem(filesystem_name: str) -> Response:
     "/<filesystem_name>/<path:resource_path>",
     methods=["DELETE", "GET", "HEAD", "PATCH", "PUT"],
 )
+@random_failure
 async def alter_resource(filesystem_name: str, resource_path: str) -> Response:
     """
     Route to handle requests related to ADLS resources which are implemented
