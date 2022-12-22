@@ -33,6 +33,7 @@ emulator: Emulator = Emulator(
 logging.basicConfig(
     format=f"[%(asctime)s] [{os.getpid()}] [%(levelname)s] %(message)s",
     level=logging.INFO,
+    datefmt="%Y-%m-%d %H:%M:%S %z",
 )
 
 # define a decorator that will give routes a random chance of failure if
@@ -40,13 +41,15 @@ logging.basicConfig(
 def random_failure(route_func: FunctionType) -> FunctionType:
     # pylint: disable=missing-docstring
 
-    # get the random chance of failure as specied by the user
+    # get the random chance of failure as specified by the user
     failure_chance: float = (
         float(env["DATAPOND_FAILURE_CHANCE"])
         if "DATAPOND_FAILURE_CHANCE" in env
         else 0.0
     )
-    logging.info("Random failure chance set to %s%%", round(failure_chance * 100, 2))
+    logging.info(
+        "datapond: Random failure chance set to %s%%", round(failure_chance * 100, 2)
+    )
 
     # declare a failure closure wrapping the route func that will randomly
     # return a failure response to the client
@@ -71,8 +74,8 @@ def random_failure(route_func: FunctionType) -> FunctionType:
     return failure_closure
 
 
-@random_failure
 @datapond.route("/")
+@random_failure
 async def root() -> Response:
     """
     Route that marks the index of this API as Forbidden.
@@ -95,8 +98,8 @@ async def root() -> Response:
     return Forbidden
 
 
-@random_failure
 @datapond.route("/<filesystem_name>", methods=["DELETE", "GET", "PUT"])
+@random_failure
 async def alter_filesystem(filesystem_name: str) -> Response:
     """
     Route to handle requests related to ADLS filesystems which are implemented
@@ -180,12 +183,12 @@ async def alter_filesystem(filesystem_name: str) -> Response:
             )
 
 
-@random_failure
 @datapond.route("/<filesystem_name>", defaults={"path": ""})
 @datapond.route(
     "/<filesystem_name>/<path:resource_path>",
     methods=["DELETE", "GET", "HEAD", "PATCH", "PUT"],
 )
+@random_failure
 async def alter_resource(filesystem_name: str, resource_path: str) -> Response:
     """
     Route to handle requests related to ADLS resources which are implemented
