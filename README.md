@@ -1,12 +1,12 @@
 <div align="center">
-    <img src="https://user-images.githubusercontent.com/9117692/209159453-9ccb845f-af45-4343-92f8-dd14961dc1e1.png" />
+    <img src="https://user-images.githubusercontent.com/9117692/209160285-3cb8a849-5f4c-483e-8499-59a89b4a86e8.png" />
     <em>A local ADLS Gen2 simulator.</em>
 </div>
 
 ## Introduction
 This is a basic local simulator that provides an API matching the specification of the Azure Data Lake Gen2 client API.
 
-Note: `datapond` currently supports the bare minimum that allows the Azure client library to make requests and create/append to files. It does not support all use cases and many values that are returned by the real ADLS API are not present. Also note that `datapond` is not intended for any sort of production use.
+**Note:** `datapond` currently supports the bare minimum that allows the Azure client library to make requests and create/append to files. It does not support all use cases and many values that are returned by the real ADLS API are not present. Also note that `datapond` is not intended for any sort of production use.
 
 ## Starting
 ### With Docker
