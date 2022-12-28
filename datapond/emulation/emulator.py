@@ -515,11 +515,11 @@ class Emulator:
         # ensure the file has pending data to append and flush it if so
         if abs_resource_path in self._pending_appends:
             # write all of the cache appends in their specified position order
-            with open(abs_resource_path, "a+", encoding="utf-8") as out_file:
+            with open(abs_resource_path, "ab+") as out_file:
                 for pending_append in sorted(
                     self._pending_appends[abs_resource_path], key=lambda tup: tup[1]
                 ):
-                    out_file.write(pending_append[0].decode("utf-8"))
+                    out_file.write(pending_append[0])
 
             # clear out the list of queued appends
             del self._pending_appends[abs_resource_path]
